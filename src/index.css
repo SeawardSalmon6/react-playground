@@ -1,0 +1,18 @@
+:root {
+  --bg-color: #0a0a0a;
+  --fs-color: #fafafa;
+  font-size: 16px;
+}
+
+* {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  box-sizing: border-box;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  color: var(--fs-color);
+  background-color: var(--bg-color);
+}

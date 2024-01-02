@@ -1,0 +1,58 @@
+{
+  "root": true,
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:react/recommended",
+    "plugin:react/jsx-runtime",
+    "plugin:react-hooks/recommended",
+    "prettier"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "plugins": [
+    "@typescript-eslint",
+    "react",
+    "react-refresh",
+    "import",
+    "import-helpers",
+    "prettier"
+  ],
+  "rules": {
+    "prefer-arrow-callback": "off",
+    "react/prop-types": "off",
+    "react/default-props": "off",
+    "react-refresh/only-export-components": ["warn", { "allowConstantExport": true }],
+    "indent": ["error", 2],
+    "linebreak-style": ["error", "unix"],
+    "quotes": ["error", "single"],
+    "semi": ["error", "always"],
+    "react-hooks/exhaustive-deps": "warn",
+    "import/prefer-default-export": "off",
+    "import/no-extraneous-dependencies": ["error", { "devDependencies": true }],
+    "import-helpers/order-imports": [
+      "warn",
+      {
+        "groups": [
+          "/^react/",
+          "module",
+          ["/^~//", "/^~pages/"],
+          ["/^~components/", "/^~icons/"],
+          ["/^~contexts/", "/^~hooks/"],
+          ["/^~services/", "/^~utils/", "/^~apis/"],
+          ["parent", "sibling", "index", "type"],
+          ["/^~styles/", "/.s?css$/"]
+        ],
+        "newlinesBetween": "always",
+        "alphabetize": { "order": "asc", "ignoreCase": true }
+      }
+    ]
+  }
+}
