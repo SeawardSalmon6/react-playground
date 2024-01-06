@@ -28,15 +28,15 @@ export type InputMaskContextType = {
 export const defaultMaskKeyChars: InputMaskKeyCharType = {
   DIGIT: {
     keyChar: '9',
-    validator: (input: string) => /\d/.test(input),
+    validator: (input: string) => !/[^\d]/.test(input),
   },
   ALPHA: {
     keyChar: 'A',
-    validator: (input: string) => /[A-Za-z]/.test(input),
+    validator: (input: string) => !/[^A-Za-z]/.test(input),
   },
   ALPHANUMERIC: {
     keyChar: '*',
-    validator: (input: string) => /[A-Za-z\d]/.test(input),
+    validator: (input: string) => !/[^A-Za-z\d]/.test(input),
   },
 };
 

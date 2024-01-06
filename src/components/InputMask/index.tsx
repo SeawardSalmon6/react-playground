@@ -63,5 +63,13 @@ export function InputMask({
     onKeyDown?.(e);
   };
 
-  return <input {...props} type="text" onChange={handleInputChange} onKeyDown={handleKeyDown} />;
+  return (
+    <input
+      {...props}
+      type="text"
+      onChange={handleInputChange}
+      onKeyDown={handleKeyDown}
+      className={`input-mask input ${props.className ?? ''}`}
+    />
+  );
 }
