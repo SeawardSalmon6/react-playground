@@ -3,7 +3,7 @@ import React, { useRef } from 'react';
 import {
   createInputMaskContext,
   getCleanedValue,
-  getMaskVariables,
+  getMaskConfigInfo,
   setContextMaskedBasedOnGroups,
   setContextMaskedUsingDefaultKeyChars,
   updateInputValueUsingMaskConfig,
@@ -17,16 +17,21 @@ export function InputMask({
   maskChar = '_',
   value,
   parser,
+  maskChoicer,
   ...props
 }: InputMaskProps) {
   const inputValue = useRef<string | undefined>(value ? String(value) : undefined);
-  const { isCustomMask, mask, maskGroups, onlyKeyCharsMask } = getMaskVariables(maskConfig);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const context = createInputMaskContext(inputValue.current);
     const value = inputValue.current ?? '';
+    const { isCustomMask, config, maskGroups, mask } = getMaskConfigInfo(
+      maskConfig,
+      maskChoicer,
+      value
+    );
 
-    if (isCustomMask) {
+    if (isCustomMask && config) {
       setContextMaskedBasedOnGroups({ context, value, maskGroups, maskChar, mask });
     } else {
       setContextMaskedUsingDefaultKeyChars({ context, value, maskChar, mask });
@@ -44,19 +49,20 @@ export function InputMask({
     if (e.key === 'Backspace') {
       const selectionLength =
         (e.currentTarget.selectionEnd ?? 0) - (e.currentTarget.selectionStart ?? 0);
-
-      inputValue.current = getCleanedValue(
-        inputValue.current?.slice(0, -(selectionLength || 1)),
-        maskConfig
+      const updatedValue = inputValue.current?.slice(0, -(selectionLength || 1));
+      const { config, isCustomMask, mask } = getMaskConfigInfo(
+        maskConfig,
+        maskChoicer,
+        updatedValue
       );
+
+      inputValue.current = getCleanedValue(updatedValue, isCustomMask && config ? config : mask);
     } else if (e.key.length === 1) {
       updateInputValueUsingMaskConfig({
         newKey: e.key,
         inputValue,
         maskConfig,
-        maskGroups,
-        isCustomMask,
-        onlyKeyCharsMask,
+        maskChoicer,
       });
     }
 

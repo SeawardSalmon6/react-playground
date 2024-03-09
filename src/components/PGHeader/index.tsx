@@ -2,20 +2,23 @@ import { useEffect } from 'react';
 import { MdArrowCircleLeft } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
 
-type PGHeaderProps = {
-  title: string;
-  tabTitle?: string;
-  navigation?: {
-    backTo?: string;
-    onClick?: () => void;
-  };
-};
+import { DEFAULT_SUFFIX, getHeader } from '~/components/PGHeader/constants';
+import { PGHeaderProps } from '~/components/PGHeader/types';
 
-const DEFAULT_SUFFIX = 'React Playground';
-
-export function PGHeader({ title, tabTitle, navigation }: PGHeaderProps) {
+export function PGHeader({ title, tabTitle, navigation, level, children }: PGHeaderProps) {
   const navigate = useNavigate();
   const { backTo, onClick } = navigation ?? {};
+  const isTitleString = typeof title === 'string';
+
+  useEffect(() => {
+    document.title = isTitleString
+      ? `${tabTitle ?? title} | ${DEFAULT_SUFFIX}`
+      : `${tabTitle} | ${DEFAULT_SUFFIX}`;
+
+    return () => {
+      document.title = DEFAULT_SUFFIX;
+    };
+  }, [isTitleString, tabTitle, title]);
 
   const handleNavigationButtonClick = () => {
     onClick?.();
@@ -25,22 +28,17 @@ export function PGHeader({ title, tabTitle, navigation }: PGHeaderProps) {
     }
   };
 
-  useEffect(() => {
-    document.title = `${tabTitle ?? title} | ${DEFAULT_SUFFIX}`;
-
-    return () => {
-      document.title = DEFAULT_SUFFIX;
-    };
-  }, [tabTitle, title]);
-
   return (
-    <h1 className="text-4xl font-bold flex gap-4 align-items">
-      {navigation && (
-        <button type="button" onClick={handleNavigationButtonClick}>
-          <MdArrowCircleLeft className="block align-middle" />
-        </button>
-      )}
-      {title}
-    </h1>
+    <header className="text-4xl font-bold flex gap-4 align-items">
+      <div className="flex items-center justify-start gap-3">
+        {navigation && (
+          <button type="button" onClick={handleNavigationButtonClick}>
+            <MdArrowCircleLeft className="block align-middle" />
+          </button>
+        )}
+        {getHeader({ level, title })}
+      </div>
+      {children}
+    </header>
   );
 }

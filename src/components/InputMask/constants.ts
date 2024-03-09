@@ -3,35 +3,92 @@ import React from 'react';
 import { intoUniqueArray } from '~/utils/intoUniqueArray';
 
 import {
+  DEFAULT_MASK_KEY_CHARS,
+  DynamicInputMaskType,
   InputMaskConfigType,
   InputMaskContextType,
   InputMaskProps,
   MaskGroupsType,
-  defaultMaskKeyChars,
 } from './types';
+
+export const getMaskConfigInfo = (
+  maskConfig: InputMaskProps['mask'],
+  maskChoicer?: InputMaskProps['maskChoicer'],
+  currentValue: string | undefined = ''
+): {
+  isCustomMask: boolean;
+  mask: string;
+  onlyKeyCharsMask: string;
+  maskGroups: MaskGroupsType[];
+  config?: InputMaskConfigType;
+} => {
+  const returnValue = {
+    isCustomMask: false,
+    mask: '',
+    config: undefined,
+    onlyKeyCharsMask: '',
+    maskGroups: [] as MaskGroupsType[],
+  };
+
+  if (typeof maskConfig === 'string') {
+    Object.assign(returnValue, { isCustomMask: false, mask: maskConfig });
+  } else if ((maskConfig as InputMaskConfigType).rules) {
+    Object.assign(returnValue, {
+      isCustomMask: true,
+      mask: (maskConfig as InputMaskConfigType).mask,
+      config: maskConfig as InputMaskConfigType,
+    });
+  } else {
+    const firstDynamicKey = Object.keys(maskConfig as DynamicInputMaskType)[0];
+    const maskChoice = maskChoicer?.(createInputMaskContext(currentValue));
+    const selectedDynamicConfig =
+      (maskChoice && (maskConfig as DynamicInputMaskType)?.[maskChoice]) ??
+      (maskConfig as DynamicInputMaskType)[firstDynamicKey];
+
+    if (typeof selectedDynamicConfig === 'string') {
+      Object.assign(returnValue, { isCustomMask: true, mask: selectedDynamicConfig });
+    } else {
+      Object.assign(returnValue, {
+        isCustomMask: true,
+        mask: selectedDynamicConfig.mask,
+        config: selectedDynamicConfig,
+      });
+    }
+  }
+
+  const { isCustomMask, config, mask } = returnValue;
+  const onlyKeyCharsMask = removeNonKeyChars(
+    mask,
+    getMaskSeparators(isCustomMask && config ? config : mask)
+  );
+  const maskGroups = isCustomMask && config ? getMaskGroups(config, onlyKeyCharsMask) : [];
+
+  Object.assign(returnValue, { onlyKeyCharsMask, maskGroups });
+  return returnValue;
+};
 
 const trimAndSliceString = (str: string | undefined, length: number) => {
   return str?.trim()?.slice(0, length) ?? '';
 };
 
-const getMaskSeparators = (mask: InputMaskProps['mask']) => {
-  if (typeof mask === 'string') {
-    return intoUniqueArray(mask.match(/[^9A*]/g)); // Get all separators based on default key chars
+const getMaskSeparators = (maskConfig: string | InputMaskConfigType) => {
+  if (typeof maskConfig === 'string') {
+    return intoUniqueArray(maskConfig.match(/[^9A*]/g)); // Get all separators based on default key chars
   }
 
-  const { rules } = mask;
+  const { rules } = maskConfig as InputMaskConfigType;
   const rulesKeyChars = intoUniqueArray(
     Object.values(rules).flatMap(({ keyChar }) => keyChar.split(''))
   );
 
   const regex = new RegExp(`[^${rulesKeyChars.join('')}]`, 'g');
-  return intoUniqueArray(mask.mask.match(regex)); // Get all separators based on custom key chars
+  return intoUniqueArray((maskConfig as InputMaskConfigType).mask.match(regex)); // Get all separators based on custom key chars
 };
 
 const isInputKeyValid = (char: string, testKeyChar: string) => {
-  return Object.values(defaultMaskKeyChars).some(({ keyChar, validator }) => {
+  return Object.values(DEFAULT_MASK_KEY_CHARS).some(({ keyChar, validator }) => {
     const isSameKeyChar = keyChar === testKeyChar;
-    const isCharValid = validator!(char);
+    const isCharValid = validator?.(char) ?? true;
     return isSameKeyChar && isCharValid;
   });
 };
@@ -113,9 +170,21 @@ const parseValueBasedOnGroup = (value: string | undefined, group: MaskGroupsType
   );
 };
 
-export const getCleanedValue = (str: string | undefined, maskConfig: InputMaskProps['mask']) => {
+export const getCleanedValue = (
+  str: string | undefined,
+  maskConfig: string | InputMaskConfigType,
+  dynamicConfig?: {
+    maskConfig: DynamicInputMaskType;
+    maskChoicer: InputMaskProps['maskChoicer'];
+  }
+) => {
   if (typeof maskConfig === 'string') {
-    const maskRealLength = maskConfig.replace(/[^9A*]/g, '').length; // Gets the mask length without key chars
+    const hasDynamicConfig = dynamicConfig !== undefined;
+    const nextMask = hasDynamicConfig
+      ? getMaskConfigInfo(dynamicConfig.maskConfig, dynamicConfig.maskChoicer, str).mask
+      : maskConfig;
+
+    const maskRealLength = nextMask.replace(/[^9A*]/g, '').length; // Gets the mask length without key chars
     return trimAndSliceString(str, maskRealLength);
   }
 
@@ -190,12 +259,9 @@ export const setContextMaskedBasedOnGroups = ({
       break;
     }
 
-    if (maskGroups.some(({ keyChar }) => keyChar.startsWith(char))) {
-      // Char is a key char, then add it to current group
-      updateCurrentGroupAndContext(char, lastConsumedValueCharIndex);
-    } else {
+    updateCurrentGroupAndContext(char, lastConsumedValueCharIndex);
+    if (!maskGroups.length || !maskGroups.some(({ keyChar }) => keyChar.startsWith(char))) {
       // Char is not a key char, then write the last group and add the separator
-      updateCurrentGroupAndContext(char, lastConsumedValueCharIndex);
       context.masked += char;
     }
   }
@@ -204,35 +270,41 @@ export const setContextMaskedBasedOnGroups = ({
 };
 
 export const updateInputValueUsingMaskConfig = ({
-  isCustomMask,
   inputValue,
-  maskGroups,
   maskConfig,
   newKey,
-  onlyKeyCharsMask,
+  maskChoicer,
 }: {
-  isCustomMask: boolean;
   inputValue: React.MutableRefObject<string | undefined>;
-  maskGroups: MaskGroupsType[];
   maskConfig: InputMaskProps['mask'];
   newKey: string;
-  onlyKeyCharsMask: string;
+  maskChoicer?: InputMaskProps['maskChoicer'];
 }) => {
+  const nextValue = (inputValue.current ?? '') + newKey;
+  const { isCustomMask, mask, config, onlyKeyCharsMask, maskGroups } = getMaskConfigInfo(
+    maskConfig,
+    maskChoicer,
+    nextValue
+  );
   const currentMaskCharIndex = inputValue.current ? inputValue.current.length : 0;
   const currentMaskChar = onlyKeyCharsMask[currentMaskCharIndex];
 
-  if (isCustomMask) {
+  if (isCustomMask && config) {
     const currentMaskGroup = maskGroups.find(
       ({ start, end }) => currentMaskCharIndex >= start && currentMaskCharIndex < end
     );
 
     if (currentMaskGroup) {
-      const cleanedValue = getCleanedValue((inputValue.current ?? '') + newKey, maskConfig);
+      const cleanedValue = getCleanedValue(nextValue, config);
       inputValue.current = parseValueBasedOnGroup(cleanedValue, currentMaskGroup);
     }
   } else {
     if (isInputKeyValid(newKey, currentMaskChar)) {
-      inputValue.current = getCleanedValue((inputValue.current ?? '') + newKey, maskConfig);
+      inputValue.current = getCleanedValue(
+        nextValue,
+        mask,
+        isCustomMask ? { maskConfig: maskConfig as DynamicInputMaskType, maskChoicer } : undefined
+      );
     }
   }
 };
@@ -257,7 +329,7 @@ export const setContextMaskedUsingDefaultKeyChars = ({
       break;
     }
 
-    if (Object.values(defaultMaskKeyChars).some(({ keyChar }) => keyChar === char)) {
+    if (Object.values(DEFAULT_MASK_KEY_CHARS).some(({ keyChar }) => keyChar === char)) {
       context.masked += value[lastConsumedValueCharIndex] ?? maskChar ?? ''; // Insert the value char or the maskChar
       lastConsumedValueCharIndex += 1;
     } else {
@@ -265,13 +337,4 @@ export const setContextMaskedUsingDefaultKeyChars = ({
       context.masked += char;
     }
   }
-};
-
-export const getMaskVariables = (maskConfig: InputMaskProps['mask']) => {
-  const isCustomMask = typeof maskConfig !== 'string';
-  const mask = isCustomMask ? (maskConfig as InputMaskConfigType).mask : maskConfig;
-  const onlyKeyCharsMask = removeNonKeyChars(mask, getMaskSeparators(maskConfig));
-  const maskGroups = isCustomMask ? getMaskGroups(maskConfig, onlyKeyCharsMask) : [];
-
-  return { isCustomMask, mask, onlyKeyCharsMask, maskGroups };
 };

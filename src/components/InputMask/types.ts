@@ -2,7 +2,7 @@ export type InputMaskProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   'onChange' | 'onKeyDown' | 'value' | 'type'
 > & {
-  mask: string | InputMaskConfigType;
+  mask: InputMaskPropType;
   value?: unknown;
   maskChar?: string | null;
   parser?: (context: InputMaskContextType) => unknown;
@@ -12,7 +12,11 @@ export type InputMaskProps = Omit<
     context: InputMaskContextType,
     e: React.ChangeEvent<HTMLInputElement>
   ) => void;
+  maskChoicer?: (context: InputMaskContextType) => string;
 };
+
+export type InputMaskPropType = string | InputMaskConfigType | DynamicInputMaskType;
+export type DynamicInputMaskType = { [key: string]: string | InputMaskConfigType };
 
 export type InputMaskConfigType = {
   mask: string;
@@ -25,7 +29,7 @@ export type InputMaskContextType = {
   parsed: unknown;
 };
 
-export const defaultMaskKeyChars: InputMaskKeyCharType = {
+export const DEFAULT_MASK_KEY_CHARS: InputMaskKeyCharType = {
   DIGIT: {
     keyChar: '9',
     validator: (input: string) => !/[^\d]/.test(input),
