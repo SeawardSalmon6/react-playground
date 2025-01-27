@@ -6,7 +6,9 @@ export function SendMessageBarChatDemo() {
   return (
     <PGLayout>
       <PGHeader navigation={{ backTo: '/' }} title="Send Message Bar Chat Live Demo" />
-      <MessageBar placeholder="Type your message..." />
+      <MessageBar
+      // placeholder="Type your message..."
+      />
     </PGLayout>
   );
 }

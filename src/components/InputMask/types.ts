@@ -1,3 +1,5 @@
+import React from 'react';
+
 export type InputMaskProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   'onChange' | 'onKeyDown' | 'value' | 'type'

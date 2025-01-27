@@ -32,7 +32,7 @@ export function PGHeader({ title, tabTitle, navigation, level, children }: PGHea
     <header className="text-4xl font-bold flex gap-4 align-items">
       <div className="flex items-center justify-start gap-3">
         {navigation && (
-          <button type="button" onClick={handleNavigationButtonClick}>
+          <button onClick={handleNavigationButtonClick} type="button">
             <MdArrowCircleLeft className="block align-middle" />
           </button>
         )}

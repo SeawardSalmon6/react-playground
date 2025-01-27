@@ -1,0 +1,9 @@
+.pg-phone-input {
+  &__select {
+    .ant-select-selection-item .pg-phone-input__option {
+      span:not(.calling-code) {
+        display: none;
+      }
+    }
+  }
+}

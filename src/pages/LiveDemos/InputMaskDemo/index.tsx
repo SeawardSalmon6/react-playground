@@ -14,18 +14,11 @@ export function InputMaskDemo() {
 
   return (
     <PGLayout>
-      <PGHeader title="React Mask Live Demo" navigation={{ backTo: '/' }} />
+      <PGHeader navigation={{ backTo: '/' }} title="React Mask Live Demo" />
       <div className="max-w-96 w-full bg-white font-sans flex flex-col items-center justify-center gap-8">
         <label className="flex flex-col gap-2 w-full">
           <span className="font-semibold">Date Input</span>
           <IMaskInput
-            className="input-mask input"
-            mask={Date as never}
-            placeholder="DD/MM/YYYY"
-            pattern="DD/MM/YYYY"
-            format={(date: DayjsConstructorType) => dayjs(date).format('DD/MM/YYYY')}
-            parse={(str) => dayjs(str, 'DD/MM/YYYY').format('YYYY-MM-DD')}
-            lazy
             blocks={{
               DD: {
                 mask: IMask.MaskedRange,
@@ -45,12 +38,19 @@ export function InputMaskDemo() {
                 to: 9999,
               },
             }}
-            unmask
+            className="input-mask input"
+            format={(date: DayjsConstructorType) => dayjs(date).format('DD/MM/YYYY')}
+            lazy
+            mask={Date as never}
             onAccept={(value) => {
               setInput1JSON({
                 value: value.length === 8 ? dayjs(value, 'DDMMYYYY').format('YYYY-MM-DD') : value,
               });
             }}
+            parse={(str) => dayjs(str, 'DD/MM/YYYY').format('YYYY-MM-DD')}
+            pattern="DD/MM/YYYY"
+            placeholder="DD/MM/YYYY"
+            unmask
           />
           <pre>{input1JSON}</pre>
         </label>
@@ -75,11 +75,11 @@ export function InputMaskDemo() {
         <label className="flex flex-col gap-2 w-full">
           <span className="font-semibold">CPF/CNPJ</span>
           <InputMask
-            name="cpf_cnpj"
-            placeholder="CPF/CNPJ"
             mask={{ cpf: '999.999.999-99', cnpj: '99.999.999/9999-99' }}
             maskChoicer={({ raw }) => (raw.length > 11 ? 'cnpj' : 'cpf')}
+            name="cpf_cnpj"
             onChange={(_, context) => setInput2JSON(context)}
+            placeholder="CPF/CNPJ"
           />
           <pre>{input2JSON}</pre>
         </label>

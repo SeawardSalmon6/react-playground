@@ -11,6 +11,73 @@ import {
   MaskGroupsType,
 } from './types';
 
+export const createInputMaskContext = (raw: string | undefined) => {
+  return {
+    masked: '',
+    raw,
+    parsed: raw,
+  } as InputMaskContextType;
+};
+
+const removeNonKeyChars = (str: string | undefined, separators: string[]) => {
+  return str ? str.replace(new RegExp(`[${separators.join('')}]`, 'g'), '') : ''; // Removes all separators from the input value
+};
+
+const getMaskSeparators = (maskConfig: string | InputMaskConfigType) => {
+  if (typeof maskConfig === 'string') {
+    return intoUniqueArray(maskConfig.match(/[^9A*]/g)); // Get all separators based on default key chars
+  }
+
+  const { rules } = maskConfig as InputMaskConfigType;
+  const rulesKeyChars = intoUniqueArray(
+    Object.values(rules).flatMap(({ keyChar }) => keyChar.split(''))
+  );
+
+  const regex = new RegExp(`[^${rulesKeyChars.join('')}]`, 'g');
+  return intoUniqueArray((maskConfig as InputMaskConfigType).mask.match(regex)); // Get all separators based on custom key chars
+};
+
+const getMaskGroups = (maskConfig: InputMaskConfigType, onlyKeyCharsMask: string) => {
+  const rules = Object.values(maskConfig.rules);
+  const groups: MaskGroupsType[] = [];
+
+  let currentGroup = '';
+  onlyKeyCharsMask.split('').forEach((char, index) => {
+    const thereAreSomeRulesThatStartsWithCurrentGroup = rules.some((rule) =>
+      rule.keyChar.startsWith(currentGroup || char)
+    );
+
+    if (thereAreSomeRulesThatStartsWithCurrentGroup) {
+      const currentGroupRule = rules.find(({ keyChar }) => keyChar === currentGroup)!;
+      if (currentGroupRule) {
+        groups.push({
+          start: index - currentGroup.length,
+          end: index,
+          ...currentGroupRule,
+        });
+        currentGroup = char;
+      } else {
+        currentGroup += char;
+      }
+    } else {
+      throw new Error('Invalid mask');
+    }
+  });
+
+  const currentGroupRule = rules.find(({ keyChar }) => keyChar === currentGroup)!;
+  if (currentGroupRule) {
+    groups.push({
+      start: onlyKeyCharsMask.length - currentGroup.length,
+      end: onlyKeyCharsMask.length,
+      ...currentGroupRule,
+    });
+  } else {
+    throw new Error('Invalid mask');
+  }
+
+  return groups;
+};
+
 export const getMaskConfigInfo = (
   maskConfig: InputMaskProps['mask'],
   maskChoicer?: InputMaskProps['maskChoicer'],
@@ -71,71 +138,12 @@ const trimAndSliceString = (str: string | undefined, length: number) => {
   return str?.trim()?.slice(0, length) ?? '';
 };
 
-const getMaskSeparators = (maskConfig: string | InputMaskConfigType) => {
-  if (typeof maskConfig === 'string') {
-    return intoUniqueArray(maskConfig.match(/[^9A*]/g)); // Get all separators based on default key chars
-  }
-
-  const { rules } = maskConfig as InputMaskConfigType;
-  const rulesKeyChars = intoUniqueArray(
-    Object.values(rules).flatMap(({ keyChar }) => keyChar.split(''))
-  );
-
-  const regex = new RegExp(`[^${rulesKeyChars.join('')}]`, 'g');
-  return intoUniqueArray((maskConfig as InputMaskConfigType).mask.match(regex)); // Get all separators based on custom key chars
-};
-
 const isInputKeyValid = (char: string, testKeyChar: string) => {
   return Object.values(DEFAULT_MASK_KEY_CHARS).some(({ keyChar, validator }) => {
     const isSameKeyChar = keyChar === testKeyChar;
     const isCharValid = validator?.(char) ?? true;
     return isSameKeyChar && isCharValid;
   });
-};
-
-const removeNonKeyChars = (str: string | undefined, separators: string[]) => {
-  return str ? str.replace(new RegExp(`[${separators.join('')}]`, 'g'), '') : ''; // Removes all separators from the input value
-};
-
-const getMaskGroups = (maskConfig: InputMaskConfigType, onlyKeyCharsMask: string) => {
-  const rules = Object.values(maskConfig.rules);
-  const groups: MaskGroupsType[] = [];
-
-  let currentGroup = '';
-  onlyKeyCharsMask.split('').forEach((char, index) => {
-    const thereAreSomeRulesThatStartsWithCurrentGroup = rules.some((rule) =>
-      rule.keyChar.startsWith(currentGroup || char)
-    );
-
-    if (thereAreSomeRulesThatStartsWithCurrentGroup) {
-      const currentGroupRule = rules.find(({ keyChar }) => keyChar === currentGroup)!;
-      if (currentGroupRule) {
-        groups.push({
-          start: index - currentGroup.length,
-          end: index,
-          ...currentGroupRule,
-        });
-        currentGroup = char;
-      } else {
-        currentGroup += char;
-      }
-    } else {
-      throw new Error('Invalid mask');
-    }
-  });
-
-  const currentGroupRule = rules.find(({ keyChar }) => keyChar === currentGroup)!;
-  if (currentGroupRule) {
-    groups.push({
-      start: onlyKeyCharsMask.length - currentGroup.length,
-      end: onlyKeyCharsMask.length,
-      ...currentGroupRule,
-    });
-  } else {
-    throw new Error('Invalid mask');
-  }
-
-  return groups;
 };
 
 const parseValueBasedOnGroup = (value: string | undefined, group: MaskGroupsType) => {
@@ -197,14 +205,6 @@ export const getCleanedValue = (
   return trimAndSliceString(str, maskRealLength);
 };
 
-export const createInputMaskContext = (raw: string | undefined) => {
-  return {
-    masked: '',
-    raw,
-    parsed: raw,
-  } as InputMaskContextType;
-};
-
 export const setContextMaskedBasedOnGroups = ({
   context,
   maskGroups,
@@ -218,6 +218,10 @@ export const setContextMaskedBasedOnGroups = ({
   maskChar: InputMaskProps['maskChar'];
   mask: string;
 }) => {
+  const inputValueLength = value?.length ?? 0;
+  let lastConsumedValueCharIndex = 0;
+  let currentGroup = '';
+
   const updateCurrentGroupAndContext = (char: string, startingIndex?: number) => {
     const currentMaskGroup = maskGroups.find(
       ({ keyChar, start }) => start >= (startingIndex ?? 0) && keyChar === currentGroup
@@ -249,10 +253,7 @@ export const setContextMaskedBasedOnGroups = ({
     }
   };
 
-  const inputValueLength = value?.length ?? 0;
-  let lastConsumedValueCharIndex = 0;
-  let currentGroup = '';
-
+  // eslint-disable-next-line no-restricted-syntax
   for (const char of mask) {
     if (!maskChar && lastConsumedValueCharIndex >= inputValueLength) {
       // No more value chars to consume and don't write rest of the mask on input
@@ -296,16 +297,16 @@ export const updateInputValueUsingMaskConfig = ({
 
     if (currentMaskGroup) {
       const cleanedValue = getCleanedValue(nextValue, config);
+      // eslint-disable-next-line no-param-reassign
       inputValue.current = parseValueBasedOnGroup(cleanedValue, currentMaskGroup);
     }
-  } else {
-    if (isInputKeyValid(newKey, currentMaskChar)) {
-      inputValue.current = getCleanedValue(
-        nextValue,
-        mask,
-        isCustomMask ? { maskConfig: maskConfig as DynamicInputMaskType, maskChoicer } : undefined
-      );
-    }
+  } else if (isInputKeyValid(newKey, currentMaskChar)) {
+    // eslint-disable-next-line no-param-reassign
+    inputValue.current = getCleanedValue(
+      nextValue,
+      mask,
+      isCustomMask ? { maskConfig: maskConfig as DynamicInputMaskType, maskChoicer } : undefined
+    );
   }
 };
 
@@ -323,6 +324,7 @@ export const setContextMaskedUsingDefaultKeyChars = ({
   let lastConsumedValueCharIndex = 0;
   const inputValueLength = value.length;
 
+  // eslint-disable-next-line no-restricted-syntax
   for (const char of mask) {
     if (!maskChar && lastConsumedValueCharIndex >= inputValueLength) {
       // No more value chars to consume and don't write rest of the mask on input

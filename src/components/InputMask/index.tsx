@@ -1,5 +1,7 @@
 import React, { useRef } from 'react';
 
+import { InputMaskProps } from './types';
+
 import {
   createInputMaskContext,
   getCleanedValue,
@@ -8,7 +10,6 @@ import {
   setContextMaskedUsingDefaultKeyChars,
   updateInputValueUsingMaskConfig,
 } from './constants';
-import { InputMaskProps } from './types';
 
 export function InputMask({
   mask: maskConfig,
@@ -24,17 +25,17 @@ export function InputMask({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const context = createInputMaskContext(inputValue.current);
-    const value = inputValue.current ?? '';
+    const currentValue = inputValue.current ?? '';
     const { isCustomMask, config, maskGroups, mask } = getMaskConfigInfo(
       maskConfig,
       maskChoicer,
-      value
+      currentValue
     );
 
     if (isCustomMask && config) {
-      setContextMaskedBasedOnGroups({ context, value, maskGroups, maskChar, mask });
+      setContextMaskedBasedOnGroups({ context, value: currentValue, maskGroups, maskChar, mask });
     } else {
-      setContextMaskedUsingDefaultKeyChars({ context, value, maskChar, mask });
+      setContextMaskedUsingDefaultKeyChars({ context, value: currentValue, maskChar, mask });
     }
 
     if (parser) {
@@ -72,10 +73,10 @@ export function InputMask({
   return (
     <input
       {...props}
-      type="text"
+      className={`input-mask input ${props.className ?? ''}`}
       onChange={handleInputChange}
       onKeyDown={handleKeyDown}
-      className={`input-mask input ${props.className ?? ''}`}
+      type="text"
     />
   );
 }
